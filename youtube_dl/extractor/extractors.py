@@ -366,6 +366,7 @@ from .fc2 import (
     FC2IE,
     FC2EmbedIE,
 )
+from .toukoucity import ToukouCityIE
 from .fczenit import FczenitIE
 from .filmon import (
     FilmOnIE,
