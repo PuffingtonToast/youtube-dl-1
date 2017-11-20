@@ -1,13 +1,18 @@
 # coding: utf-8
 from __future__ import unicode_literals
 
+import itertools
+import re
+
 from .common import InfoExtractor
-from ..compat import compat_urllib_parse_urlparse
+from ..compat import compat_urllib_parse_urlparse, compat_HTTPError
 from ..utils import (
     int_or_none,
     mimetype2ext,
     remove_end,
     url_or_none,
+    orderedSet,
+    ExtractorError
 )
 
 
@@ -97,3 +102,52 @@ class IwaraIE(InfoExtractor):
             'age_limit': age_limit,
             'formats': formats,
         }
+
+class IwaraUserVideosIE(InfoExtractor):
+    _VALID_URL = r'https?://(?:www\.|ecchi\.)?iwara\.tv/users/(?P<id>[^/]+)(/videos)?/?'
+    _TESTS = [{
+        'url': 'http://ecchi.iwara.tv/users/DNNinetail/videos',
+        'info_dict': {
+            'id': 'DNNinetail',
+        },
+        'playlist_mincount': 567,
+    }, {
+        'url': 'http://ecchi.iwara.tv/users/DNNinetail/videos',
+        'playlist_mincount': 567,
+    }]
+
+    @classmethod
+    def _extract_entries(cls, webpage):
+        if '_VIDEO_URL_RE' not in cls.__dict__:
+            cls.VIDEO_URL_RE = re.compile(r'"/videos/.+?"')
+        return orderedSet(cls.VIDEO_URL_RE.findall(webpage))
+
+    def _real_extract(self, url):
+        user_id = self._match_id(url)
+        hostname = compat_urllib_parse_urlparse(url).hostname
+        scheme = compat_urllib_parse_urlparse(url).scheme
+
+        entries = []
+        for page_num in itertools.count(0):
+            try:
+                videos_page_url = 'http://ecchi.iwara.tv/users/%s/videos' % user_id
+                videos_page = self._download_webpage(
+                    videos_page_url, user_id,
+                    'Downloading page %d at %s' % (page_num, videos_page_url),
+                    query={'page': page_num})
+            except ExtractorError as e:
+                if isinstance(e.cause, compat_HTTPError) and e.cause.code == 404:
+                    break
+                raise
+            page_entries = [
+                self.url_result(
+                    scheme + '://' + hostname + video_rel_path.strip('"'),
+                    IwaraIE.ie_key())
+                for video_rel_path in self._extract_entries(videos_page)
+            ]
+
+            if not page_entries:
+                break
+            entries.extend(page_entries)
+
+        return self.playlist_result(entries, user_id, user_id)
