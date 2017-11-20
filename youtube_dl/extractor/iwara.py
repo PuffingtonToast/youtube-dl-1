@@ -103,8 +103,9 @@ class IwaraIE(InfoExtractor):
             'formats': formats,
         }
 
+
 class IwaraUserVideosIE(InfoExtractor):
-    _VALID_URL = r'https?://(?:www\.|ecchi\.)?iwara\.tv/users/(?P<id>[^/]+)(/videos)?/?'
+    _VALID_URL = r'https?://(?:www\.|ecchi\.)?iwara\.tv/users/(?P<id>[^/]+)(/videos)?/?$'
     _TESTS = [{
         'url': 'http://ecchi.iwara.tv/users/DNNinetail/videos',
         'info_dict': {
@@ -122,18 +123,94 @@ class IwaraUserVideosIE(InfoExtractor):
             cls.VIDEO_URL_RE = re.compile(r'"/videos/.+?"')
         return orderedSet(cls.VIDEO_URL_RE.findall(webpage))
 
+    def _extract_from_videos_list(self, url, page_num):
+        user_id = self._match_id(url)
+        hostname = compat_urllib_parse_urlparse(url).hostname
+        scheme = compat_urllib_parse_urlparse(url).scheme
+
+        try:
+            videos_page_url = 'http://ecchi.iwara.tv/users/%s/videos' % user_id
+            videos_page = self._download_webpage(
+                videos_page_url, user_id,
+                'Downloading page %d at %s' % (page_num, videos_page_url),
+                query={'page': page_num})
+        except ExtractorError as e:
+            if isinstance(e.cause, compat_HTTPError) and e.cause.code == 404:
+                return []
+            raise
+        return [
+            self.url_result(
+                scheme + '://' + hostname + video_rel_path.strip('"'),
+                IwaraIE.ie_key())
+            for video_rel_path in self._extract_entries(videos_page)
+        ]
+
+    def _extract_from_user_page(self, url):
+        user_id = self._match_id(url)
+        hostname = compat_urllib_parse_urlparse(url).hostname
+        scheme = compat_urllib_parse_urlparse(url).scheme
+
+        try:
+            user_page_url = 'http://ecchi.iwara.tv/users/%s' % user_id
+            user_page = self._download_webpage(
+                user_page_url, user_id,
+                'Downloading from user page at %s' % user_page_url)
+        except ExtractorError as e:
+            if isinstance(e.cause, compat_HTTPError) and e.cause.code == 404:
+                return []
+            raise
+        return [
+            self.url_result(
+                scheme + '://' + hostname + video_rel_path.strip('"'),
+                IwaraIE.ie_key())
+            for video_rel_path in self._extract_entries(user_page)
+        ]
+
     def _real_extract(self, url):
         user_id = self._match_id(url)
+
+        entries = []
+        for page_num in itertools.count(0):
+            page_entries = self._extract_from_videos_list(url, page_num)
+            if not page_entries:
+                break
+            entries.extend(page_entries)
+        if not entries:
+            self.to_screen('No videos in video list. Falling back to user page.')
+            entries.extend(self._extract_from_user_page(url))
+
+        return self.playlist_result(entries, user_id, user_id)
+
+
+class IwaraFollowingIE(InfoExtractor):
+    _VALID_URL = r'https?://(?:www\.|ecchi\.)?iwara\.tv/users/(?P<id>[^/]+)/following/?'
+    _TESTS = [{
+        'url': 'http://ecchi.iwara.tv/users/yunatbm/following',
+        'info_dict': {
+            'id': 'yunatbm_following_list',
+        },
+        'playlist_mincount': 12,
+    }]
+
+    @classmethod
+    def _extract_entries(cls, webpage):
+        if '_USER_URL_RE' not in cls.__dict__:
+            cls.USER_URL_RE = re.compile(r'"/users/[^/]+?"')
+        return orderedSet(cls.USER_URL_RE.findall(webpage))
+
+    def _real_extract(self, url):
+        follower_id = self._match_id(url)
+        playlist_id = follower_id + "_following_list"
         hostname = compat_urllib_parse_urlparse(url).hostname
         scheme = compat_urllib_parse_urlparse(url).scheme
 
         entries = []
         for page_num in itertools.count(0):
             try:
-                videos_page_url = 'http://ecchi.iwara.tv/users/%s/videos' % user_id
-                videos_page = self._download_webpage(
-                    videos_page_url, user_id,
-                    'Downloading page %d at %s' % (page_num, videos_page_url),
+                following_page_url = 'http://ecchi.iwara.tv/users/%s/following' % follower_id
+                following_page = self._download_webpage(
+                    following_page_url, follower_id,
+                    'Downloading page %d at %s' % (page_num, following_page_url),
                     query={'page': page_num})
             except ExtractorError as e:
                 if isinstance(e.cause, compat_HTTPError) and e.cause.code == 404:
@@ -141,13 +218,13 @@ class IwaraUserVideosIE(InfoExtractor):
                 raise
             page_entries = [
                 self.url_result(
-                    scheme + '://' + hostname + video_rel_path.strip('"'),
-                    IwaraIE.ie_key())
-                for video_rel_path in self._extract_entries(videos_page)
+                    scheme + '://' + hostname + user_rel_path.strip('"'),
+                    IwaraUserVideosIE.ie_key())
+                for user_rel_path in self._extract_entries(following_page)
             ]
 
             if not page_entries:
                 break
             entries.extend(page_entries)
 
-        return self.playlist_result(entries, user_id, user_id)
+        return self.playlist_result(entries, playlist_id, playlist_id)
