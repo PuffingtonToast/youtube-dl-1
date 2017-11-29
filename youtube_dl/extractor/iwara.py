@@ -129,7 +129,7 @@ class IwaraUserVideosIE(InfoExtractor):
         scheme = compat_urllib_parse_urlparse(url).scheme
 
         try:
-            videos_page_url = 'http://ecchi.iwara.tv/users/%s/videos' % user_id
+            videos_page_url = '%s://%s/users/%s/videos' % (scheme, hostname, user_id)
             videos_page = self._download_webpage(
                 videos_page_url, user_id,
                 'Downloading page %d at %s' % (page_num, videos_page_url),
@@ -151,7 +151,7 @@ class IwaraUserVideosIE(InfoExtractor):
         scheme = compat_urllib_parse_urlparse(url).scheme
 
         try:
-            user_page_url = 'http://ecchi.iwara.tv/users/%s' % user_id
+            user_page_url = '%s://%s/users/%s' % (scheme, hostname, user_id)
             user_page = self._download_webpage(
                 user_page_url, user_id,
                 'Downloading from user page at %s' % user_page_url)
@@ -207,7 +207,7 @@ class IwaraFollowingIE(InfoExtractor):
         entries = []
         for page_num in itertools.count(0):
             try:
-                following_page_url = 'http://ecchi.iwara.tv/users/%s/following' % follower_id
+                following_page_url = '%s://%s/users/%s/following' % (scheme, hostname, follower_id)
                 following_page = self._download_webpage(
                     following_page_url, follower_id,
                     'Downloading page %d at %s' % (page_num, following_page_url),
