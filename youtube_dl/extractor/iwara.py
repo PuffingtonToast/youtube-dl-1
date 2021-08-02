@@ -77,6 +77,8 @@ class IwaraIE(InfoExtractor):
         title = remove_end(self._html_search_regex(
             r'<title>([^<]+)</title>', webpage, 'title'), ' | Iwara')
 
+        uploader = self._html_search_regex(r'Submitted by .+?class="username">(.+?)</a>', webpage, 'title')
+
         formats = []
         for a_format in video_data:
             format_uri = url_or_none(a_format.get('uri'))
@@ -101,6 +103,7 @@ class IwaraIE(InfoExtractor):
             'title': title,
             'age_limit': age_limit,
             'formats': formats,
+            'uploader': uploader
         }
 
 
