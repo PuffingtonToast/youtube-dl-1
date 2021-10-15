@@ -1266,6 +1266,7 @@ from .toggle import (
     ToggleIE,
     MeWatchIE,
 )
+from .tokyomotion import TokyoMotionIE
 from .tonline import TOnlineIE
 from .toongoggles import ToonGogglesIE
 from .toutv import TouTvIE
