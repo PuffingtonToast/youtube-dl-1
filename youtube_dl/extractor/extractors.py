@@ -1488,6 +1488,7 @@ from .voxmedia import (
 )
 from .vrt import VRTIE
 from .vrak import VrakIE
+from .vrporn import VrPornIE
 from .vrv import (
     VRVIE,
     VRVSeriesIE,
